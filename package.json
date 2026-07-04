@@ -1,0 +1,19 @@
+{
+  "name": "com.lsby.smart-volume.ulanziplugin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "release": "bumpp --all --execute \"node scripts/sync-version.js\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "bumpp": "^9.4.1"
+  }
+}

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能音量控制属性面板</title>
+    <style>
+      :root {
+        --背景色: #16171d;
+        --文字主色: #f3f4f6;
+        --文字次色: #9ca3af;
+        --主题色-起: #6366f1;
+        --主题色-止: #06b6d4;
+        --绿色-亮: #10b981;
+        --边框色: rgba(255, 255, 255, 0.08);
+        --卡片背景: rgba(255, 255, 255, 0.03);
+        --字体:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: transparent;
+        color: var(--文字主色);
+        font-family: var(--字体);
+        font-size: 12px;
+        line-height: 1.4;
+        padding: 8px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+
+      .面板-主容器 {
+        background: var(--卡片背景);
+        border: 1px solid var(--边框色);
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .面板-头部 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .面板-标题 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+      }
+
+      .引导-容器 {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 4px;
+        background: rgba(255, 255, 255, 0.01);
+        padding: 6px;
+        border-radius: 6px;
+        border-left: 2px solid var(--主题色-起);
+      }
+
+      .引导-步骤 {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--文字次色);
+      }
+
+      .步骤-文本 {
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="面板-主容器">
+      <div class="面板-头部">
+        <div class="面板-标题" data-lan="标题">智能音量控制</div>
+      </div>
+      <div class="引导-容器">
+        <div class="引导-步骤">
+          <span class="步骤-文本" data-lan="说明1">直接旋转旋钮：调整系统全局主音量。</span>
+        </div>
+        <div class="引导-步骤">
+          <span class="步骤-文本" data-lan="说明2">按下并旋转旋钮：调整当前前台应用音量。</span>
+        </div>
+        <div class="引导-步骤">
+          <span class="步骤-文本" data-lan="说明3">双击旋钮：打开所有进程音量列表模式。</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const 链接参数 = new URLSearchParams(window.location.search);
+        const 语言字典 = {
+          "zh_CN": {
+            "标题": "智能音量控制",
+            "说明1": "直接旋转旋钮：调整系统全局主音量。",
+            "说明2": "按下并旋转旋钮：调整当前前台应用音量。",
+            "说明3": "双击旋钮：打开所有进程音量列表模式。"
+          },
+          "en": {
+            "标题": "Smart Volume Control",
+            "说明1": "Rotate knob: Adjust overall system volume.",
+            "说明2": "Press & rotate knob: Adjust foreground app volume.",
+            "说明3": "Double click knob: Open process volume list mode."
+          }
+        };
+
+        let 语言设置 = "en";
+        const 语言参数 = 链接参数.get("language");
+        const 详情参数 = 链接参数.get("info");
+
+        if (语言参数) {
+          语言设置 = 语言参数;
+        } else if (详情参数) {
+          try {
+            const 详情 = JSON.parse(详情参数);
+            if (详情?.application?.language) {
+              语言设置 = 详情.application.language;
+            }
+          } catch (错误) {}
+        }
+
+        const 是否为中文 = 语言设置.toLowerCase().startsWith("zh");
+        const 目标语言 = 是否为中文 ? "zh_CN" : "en";
+        const 当前语言包 = 语言字典[目标语言];
+
+        document.querySelectorAll("[data-lan]").forEach((元素) => {
+          const 键 = 元素.getAttribute("data-lan");
+          if (当前语言包[键]) {
+            元素.innerHTML = 当前语言包[键];
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

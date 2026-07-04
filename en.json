@@ -1,0 +1,10 @@
+{
+  "Name": "Smart Volume",
+  "Description": "Adjust system volume with knob rotation, press and rotate to adjust foreground app volume",
+  "Actions": [
+    {
+      "Name": "Smart Volume Control",
+      "Tooltip": "Smart Volume Control"
+    }
+  ]
+}
