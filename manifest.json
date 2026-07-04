@@ -1,42 +1,44 @@
 {
-	"Version": "1.0.0",
-	"Author": "lsby",
-	"Name": "Smart Volume",
-	"Description": "Adjust system volume with knob rotation, press and rotate to adjust foreground app volume",
-	"Icon": "assets/icons/icon.png",
-	"Category": "Audio",
-	"CategoryIcon": "assets/icons/category.png",
-	"CodePath": "app.js",
-	"Type": "JavaScript",
-	"UUID": "com.lsby.smart-volume",
-	"Actions": [
-		{
-			"Name": "Smart Volume Control",
-			"Icon": "assets/icons/action.png",
-			"state": 0,
-			"States": [
-				{
-					"Name": "normal",
-					"Image": "assets/icons/action.png"
-				}
-			],
-			"Controllers": [ "Encoder" ],
-			"Encoder": {
-				"layout": "$UA1"
-			},
-			"Tooltip": "Smart Volume Control",
-			"SupportedInMultiActions": false,
-			"PropertyInspectorPath": "ui/index.html",
-			"UUID": "com.lsby.smart-volume.action"
-		}
-	],
-	"OS": [
-		{
-			"Platform": "windows",
-			"MinimumVersion": "10"
-		}
-	],
-	"Software": {
-    	"MinVersion": "2.1.0"
-	}
+  "Version": "1.0.0",
+  "Author": "lsby",
+  "Name": "Smart Volume",
+  "Description": "Adjust system volume with knob rotation, press and rotate to adjust foreground app volume",
+  "Icon": "assets/icons/icon.png",
+  "Category": "Audio",
+  "CategoryIcon": "assets/icons/category.png",
+  "CodePath": "app.js",
+  "Type": "JavaScript",
+  "UUID": "com.lsby.smart-volume",
+  "Actions": [
+    {
+      "Name": "Smart Volume Control",
+      "Icon": "assets/icons/action.png",
+      "state": 0,
+      "States": [
+        {
+          "Name": "normal",
+          "Image": "assets/icons/action.png"
+        }
+      ],
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1"
+      },
+      "Tooltip": "Smart Volume Control",
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "ui/index.html",
+      "UUID": "com.lsby.smart-volume.action"
+    }
+  ],
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinVersion": "2.1.0"
+  }
 }
