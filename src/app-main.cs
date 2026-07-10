@@ -69,6 +69,18 @@ namespace VolumeOSD {
                         if (target == "Preload") return; // 仅预热，不显示
                         float step = float.Parse(parts[2]) / 100f;
                         
+                        if (target == "HoldStart") {
+                            window.StartHoldProgress();
+                            return;
+                        }
+                        if (target == "HoldCancel") {
+                            window.CancelHoldProgress();
+                            return;
+                        }
+                        if (target == "SetDefaultApp") {
+                            window.SetDefaultApp();
+                            return;
+                        }
                         if (target == "ToggleListMode") {
                             window.ToggleListMode();
                             return;
@@ -90,9 +102,19 @@ namespace VolumeOSD {
                             }
                         } else {
                             if (target == "Master") {
-                                float vol;
-                                VolumeOSD.Audio.AudioManager.ChangeMasterVolume(step, out vol);
-                                window.UpdateVolume("系统主音量", Math.Round(vol * 100));
+                                string defaultApp = window.DefaultAppName;
+                                if (!string.IsNullOrEmpty(defaultApp) && defaultApp != "系统主音量") {
+                                    string outAppName;
+                                    float vol;
+                                    bool ok = VolumeOSD.Audio.AudioManager.ChangeAppVolumeByName(defaultApp, step, out outAppName, out vol);
+                                    if (ok) {
+                                        window.UpdateVolume(outAppName, Math.Round(vol * 100));
+                                        return;
+                                    }
+                                }
+                                float mVol;
+                                VolumeOSD.Audio.AudioManager.ChangeMasterVolume(step, out mVol);
+                                window.UpdateVolume("系统主音量", Math.Round(mVol * 100));
                             } else if (target == "Foreground") {
                                 string appName;
                                 float vol;
