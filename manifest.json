@@ -1,5 +1,5 @@
 {
-  "Version": "1.0.0",
+  "Version": "1.0.1",
   "Author": "lsby",
   "Name": "Smart Volume",
   "Description": "Adjust system volume with knob rotation, press and rotate to adjust foreground app volume",
