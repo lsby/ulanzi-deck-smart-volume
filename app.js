@@ -16,7 +16,6 @@ try {
 
 const logDir = path.join(__dirname, 'logs');
 const logFile = path.join(logDir, 'plugin.log');
-
 function log(msg) {
     if (!config.debug) return;
     try {
@@ -72,6 +71,8 @@ function triggerVolumeCmd(targetMode, direction) {
 const ws = new WebSocket(`ws://${address}:${port}`);
 
 let lastDialDownTime = 0;
+let singleClickTimeout = null;
+let holdTimeout = null;
 
 ws.on('open', () => {
     log("Connected to Ulanzi Deck WebSocket.");
@@ -106,17 +107,34 @@ ws.on('message', (data) => {
         } else if (msg.cmd === 'dialdown') {
             const now = Date.now();
             log(`[ACTION] 旋钮被按下`);
+            
+            if (singleClickTimeout) {
+                clearTimeout(singleClickTimeout);
+                singleClickTimeout = null;
+            }
+
             if (now - lastDialDownTime < 400) {
                 log(`[ACTION] 旋钮双击`);
                 triggerVolumeCmd('ToggleListMode', 'right');
                 lastDialDownTime = 0;
             } else {
                 lastDialDownTime = now;
-                log(`[ACTION] 旋钮单击`);
-                triggerVolumeCmd('SingleClick', 'right');
             }
         } else if (msg.cmd === 'dialup') {
+            const now = Date.now();
             log(`[ACTION] 旋钮被松开`);
+            
+            if (lastDialDownTime !== 0) {
+                const timeSinceDown = now - lastDialDownTime;
+                // 单击必须在400ms的判定窗口结束后才执行，以防止被双击抢占
+                const delay = Math.max(0, 400 - timeSinceDown);
+                singleClickTimeout = setTimeout(() => {
+                    log(`[ACTION] 旋钮单击`);
+                    triggerVolumeCmd('SingleClick', 'right');
+                    singleClickTimeout = null;
+                    lastDialDownTime = 0;
+                }, delay);
+            }
         }
     } catch (e) {
         log("Error parsing message: " + e.message);

@@ -25,7 +25,18 @@ namespace VolumeOSD {
         public bool IsInListMode { get { return isInListMode; } }
         public bool IsItemLocked { get { return isItemLocked; } }
 
+        public string DefaultAppName { get; private set; }
+        private Border currentHoldProgressBorder;
+        private string configFilePath;
+
         public OsdWindow() {
+            configFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "default_app.txt");
+            if (System.IO.File.Exists(configFilePath)) {
+                DefaultAppName = System.IO.File.ReadAllText(configFilePath).Trim();
+            } else {
+                DefaultAppName = "";
+            }
+
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
             Background = Brushes.Transparent;
@@ -146,7 +157,7 @@ namespace VolumeOSD {
 
         public void ToggleListMode() {
             if (isInListMode) {
-                ExitListMode();
+                SetDefaultApp();
             } else {
                 EnterListMode();
             }
@@ -197,6 +208,42 @@ namespace VolumeOSD {
             this.BeginAnimation(UIElement.OpacityProperty, anim);
         }
 
+        public void StartHoldProgress() {
+            if (currentHoldProgressBorder != null && isInListMode) {
+                var anim = new DoubleAnimation(0, this.Width - 20, TimeSpan.FromMilliseconds(3000));
+                currentHoldProgressBorder.BeginAnimation(Border.WidthProperty, anim);
+                listModeTimer.Stop();
+            }
+        }
+
+        public void CancelHoldProgress() {
+            if (currentHoldProgressBorder != null) {
+                currentHoldProgressBorder.BeginAnimation(Border.WidthProperty, null);
+                currentHoldProgressBorder.Width = 0;
+                if (isInListMode) {
+                    listModeTimer.Start();
+                }
+            }
+        }
+
+        public void SetDefaultApp() {
+            if (isInListMode && currentSessions.Count > 0 && selectedSessionIndex >= 0 && selectedSessionIndex < currentSessions.Count) {
+                var session = currentSessions[selectedSessionIndex];
+                DefaultAppName = session.AppName;
+                try {
+                    System.IO.File.WriteAllText(configFilePath, DefaultAppName);
+                } catch { }
+                RenderListMode();
+                
+                var anim = new DoubleAnimation(1.0, 0.3, TimeSpan.FromMilliseconds(150));
+                anim.AutoReverse = true;
+                this.BeginAnimation(UIElement.OpacityProperty, anim);
+                
+                listModeTimer.Stop();
+                listModeTimer.Start();
+            }
+        }
+
         public void ToggleItemLock() {
             if (!isInListMode) return;
             isItemLocked = !isItemLocked;
@@ -240,6 +287,10 @@ namespace VolumeOSD {
 
                 var displayName = session.AppName;
                 if(displayName.Length > 0) displayName = char.ToUpper(displayName[0]) + displayName.Substring(1);
+
+                if (!string.IsNullOrEmpty(DefaultAppName) && session.AppName.Equals(DefaultAppName, StringComparison.OrdinalIgnoreCase)) {
+                    displayName = "[默认] " + displayName;
+                }
 
                 var text = new TextBlock {
                     Text = displayName + "  " + Math.Round(session.Volume * 100) + "%",
@@ -287,8 +338,18 @@ namespace VolumeOSD {
                         CornerRadius = new CornerRadius(6),
                         Margin = new Thickness(-10, -2, -10, -2)
                     };
+                    
+                    currentHoldProgressBorder = new Border {
+                        Background = new SolidColorBrush(Color.FromArgb(80, 255, 215, 0)),
+                        CornerRadius = new CornerRadius(6),
+                        Margin = new Thickness(-10, -2, -10, -2),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = 0
+                    };
+
                     var wrapper = new Grid();
                     wrapper.Children.Add(bg);
+                    wrapper.Children.Add(currentHoldProgressBorder);
                     wrapper.Children.Add(itemGrid);
                     listModePanel.Children.Add(wrapper);
                 } else {

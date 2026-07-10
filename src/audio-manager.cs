@@ -233,6 +233,62 @@ namespace VolumeOSD.Audio
             }
         }
 
+        internal static bool ChangeAppVolumeByName(string appName, float step, out string outAppName, out float newVolume)
+        {
+            outAppName = appName;
+            newVolume = 0;
+            
+            if (string.IsNullOrEmpty(appName) || appName == "系统主音量") {
+                ChangeMasterVolume(step, out newVolume);
+                return true;
+            }
+
+            try {
+                var mgr = GetSessionManager();
+                if (mgr == null) return false;
+
+                IAudioSessionEnumerator sessionEnum;
+                mgr.GetSessionEnumerator(out sessionEnum);
+                if (sessionEnum == null) return false;
+
+                int count;
+                sessionEnum.GetCount(out count);
+                bool found = false;
+
+                for (int i = 0; i < count; i++)
+                {
+                    IAudioSessionControl2 ctl;
+                    sessionEnum.GetSession(i, out ctl);
+                    if (ctl != null)
+                    {
+                        uint cPid;
+                        ctl.GetProcessId(out cPid);
+                        string cName = GetProcessNameCached(cPid);
+                        
+                        if (cName.Equals(appName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var sav = ctl as ISimpleAudioVolume;
+                            if (sav != null)
+                            {
+                                float vol;
+                                sav.GetMasterVolume(out vol);
+                                vol += step;
+                                if (vol < 0) vol = 0;
+                                if (vol > 1) vol = 1;
+                                Guid emptyGuid = Guid.Empty;
+                                sav.SetMasterVolume(vol, ref emptyGuid);
+                                newVolume = vol;
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                return found;
+            } catch (Exception) {
+                return false;
+            }
+        }
+
         internal static List<AppAudioSession> GetActiveSessions()
         {
             var list = new List<AppAudioSession>();
