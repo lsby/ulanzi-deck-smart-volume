@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const net = require('net');
 
 const configPath = path.join(__dirname, 'config.json');
@@ -43,14 +43,16 @@ if (!port) {
 
 const svvPath = path.join(__dirname, 'bin', 'SoundVolumeView.exe');
 const getActiveAppPath = path.join(__dirname, 'bin', 'get-active-app.exe');
+const getAudioSessionsPath = path.join(__dirname, 'bin', 'get-audio-sessions.exe');
 const osdPath = path.join(__dirname, 'bin', 'volume-osd.exe');
 
-function triggerVolumeCmd(targetMode, direction) {
+function triggerVolumeCmd(targetMode, direction, context) {
     const step = 2;
     const change = direction.includes('right') ? `+${step}` : `-${step}`;
     
     const pipeName = '\\\\.\\pipe\\UlanziSmartVolumeOSD';
-    const msg = `CMD|${targetMode}|${change}\r\n`;
+    const contextStr = context ? `|${context}` : '|default';
+    const msg = `CMD|${targetMode}|${change}${contextStr}\r\n`;
     
     const client = net.connect(pipeName, () => {
         client.write(msg);
@@ -70,8 +72,8 @@ function triggerVolumeCmd(targetMode, direction) {
 
 const ws = new WebSocket(`ws://${address}:${port}`);
 
-let lastDialDownTime = 0;
-let singleClickTimeout = null;
+let lastDialDownTime = new Map();
+let singleClickTimeout = new Map();
 let holdTimeout = null;
 
 ws.on('open', () => {
@@ -96,44 +98,106 @@ ws.on('open', () => {
 ws.on('message', (data) => {
     try {
         const msg = JSON.parse(data.toString());
+        log(`[WS] 收到消息: cmd=${msg.cmd}, actionid=${msg.actionid}, event=${msg.event}, context=${msg.context}, payload=${JSON.stringify(msg.payload)}`);
+        const ctx = msg.actionid || msg.context || 'default';
+        
         if (msg.cmd === 'dialrotate') {
             if (msg.rotateEvent.includes('hold')) {
-                log(`[ACTION] 旋钮按下时扭动: 方向=${msg.rotateEvent}`);
-                triggerVolumeCmd('Foreground', msg.rotateEvent);
+                log(`[ACTION] 旋钮按下时扭动: 方向=${msg.rotateEvent}, context=${ctx}`);
+                triggerVolumeCmd('Foreground', msg.rotateEvent, ctx);
             } else {
-                log(`[ACTION] 旋钮正常扭动: 方向=${msg.rotateEvent}`);
-                triggerVolumeCmd('Master', msg.rotateEvent);
+                log(`[ACTION] 旋钮正常扭动: 方向=${msg.rotateEvent}, context=${ctx}`);
+                triggerVolumeCmd('Master', msg.rotateEvent, ctx);
             }
         } else if (msg.cmd === 'dialdown') {
             const now = Date.now();
-            log(`[ACTION] 旋钮被按下`);
+            log(`[ACTION] 旋钮被按下: context=${ctx}`);
             
-            if (singleClickTimeout) {
-                clearTimeout(singleClickTimeout);
-                singleClickTimeout = null;
+            if (singleClickTimeout.has(ctx)) {
+                clearTimeout(singleClickTimeout.get(ctx));
+                singleClickTimeout.delete(ctx);
             }
 
-            if (now - lastDialDownTime < 400) {
-                log(`[ACTION] 旋钮双击`);
-                triggerVolumeCmd('ToggleListMode', 'right');
-                lastDialDownTime = 0;
+            const lastDown = lastDialDownTime.get(ctx) || 0;
+            if (now - lastDown < 400) {
+                log(`[ACTION] 旋钮双击: context=${ctx}`);
+                triggerVolumeCmd('ToggleListMode', 'right', ctx);
+                lastDialDownTime.set(ctx, 0);
             } else {
-                lastDialDownTime = now;
+                lastDialDownTime.set(ctx, now);
             }
         } else if (msg.cmd === 'dialup') {
             const now = Date.now();
-            log(`[ACTION] 旋钮被松开`);
+            log(`[ACTION] 旋钮被松开: context=${ctx}`);
             
-            if (lastDialDownTime !== 0) {
-                const timeSinceDown = now - lastDialDownTime;
+            const lastDown = lastDialDownTime.get(ctx) || 0;
+            if (lastDown !== 0) {
+                const timeSinceDown = now - lastDown;
                 // 单击必须在400ms的判定窗口结束后才执行，以防止被双击抢占
                 const delay = Math.max(0, 400 - timeSinceDown);
-                singleClickTimeout = setTimeout(() => {
-                    log(`[ACTION] 旋钮单击`);
-                    triggerVolumeCmd('SingleClick', 'right');
-                    singleClickTimeout = null;
-                    lastDialDownTime = 0;
-                }, delay);
+                singleClickTimeout.set(ctx, setTimeout(() => {
+                    log(`[ACTION] 旋钮单击: context=${ctx}`);
+                    triggerVolumeCmd('SingleClick', 'right', ctx);
+                    singleClickTimeout.delete(ctx);
+                    lastDialDownTime.set(ctx, 0);
+                }, delay));
+            }
+        } else if (msg.cmd === 'sendToPlugin' && msg.payload) {
+            const payload = msg.payload;
+            const actionUuid = msg.uuid;
+            const actionContext = msg.actionid || msg.context || ctx;
+            
+            if (payload.command === 'get_active_processes') {
+                execFile(getAudioSessionsPath, (err, stdout) => {
+                    if (err) return;
+                    const apps = stdout.trim().split('\n').map(s => s.trim()).filter(s => s);
+                    let currentDefault = '';
+                    const defaultAppsFile = path.join(__dirname, 'default_apps.txt');
+                    if (fs.existsSync(defaultAppsFile)) {
+                        const lines = fs.readFileSync(defaultAppsFile, 'utf-8').split('\n');
+                        for (const line of lines) {
+                            const [k, v] = line.split('=');
+                            if (k === actionContext && v) currentDefault = v.trim();
+                        }
+                    }
+                    ws.send(JSON.stringify({
+                        cmd: 'sendToPropertyInspector',
+                        uuid: actionUuid,
+                        actionid: actionContext,
+                        payload: {
+                            type: 'active_processes',
+                            apps: apps,
+                            currentDefault: currentDefault
+                        }
+                    }));
+                });
+            } else if (payload.command === 'set_default_app') {
+                const appName = payload.appName;
+                const defaultAppsFile = path.join(__dirname, 'default_apps.txt');
+                let dict = {};
+                if (fs.existsSync(defaultAppsFile)) {
+                    const lines = fs.readFileSync(defaultAppsFile, 'utf-8').split('\n');
+                    for (const line of lines) {
+                        const [k, v] = line.split('=');
+                        if (k && v) dict[k] = v.trim();
+                    }
+                }
+                if (appName && appName !== '系统主音量') {
+                    dict[actionContext] = appName;
+                } else {
+                    delete dict[actionContext];
+                }
+                const outLines = Object.entries(dict).map(([k, v]) => `${k}=${v}`);
+                fs.writeFileSync(defaultAppsFile, outLines.join('\n'));
+                
+                // 通知 OSD 热重载配置
+                const pipeName = '\\\\.\\pipe\\UlanziSmartVolumeOSD';
+                const reloadMsg = `CMD|ReloadConfig|0|default\r\n`;
+                const reloadClient = net.connect(pipeName, () => {
+                    reloadClient.write(reloadMsg);
+                    reloadClient.end();
+                });
+                reloadClient.on('error', () => { /* 忽略错误 */ });
             }
         }
     } catch (e) {

@@ -25,17 +25,46 @@ namespace VolumeOSD {
         public bool IsInListMode { get { return isInListMode; } }
         public bool IsItemLocked { get { return isItemLocked; } }
 
-        public string DefaultAppName { get; private set; }
+        public string ListModeContext { get; private set; }
+        private Dictionary<string, string> contextToApp = new Dictionary<string, string>();
         private Border currentHoldProgressBorder;
         private string configFilePath;
 
-        public OsdWindow() {
-            configFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "default_app.txt");
+        private void LoadConfig() {
+            contextToApp.Clear();
             if (System.IO.File.Exists(configFilePath)) {
-                DefaultAppName = System.IO.File.ReadAllText(configFilePath).Trim();
-            } else {
-                DefaultAppName = "";
+                try {
+                    string[] lines = System.IO.File.ReadAllLines(configFilePath);
+                    foreach (var line in lines) {
+                        var idx = line.IndexOf('=');
+                        if (idx > 0) {
+                            contextToApp[line.Substring(0, idx)] = line.Substring(idx + 1);
+                        }
+                    }
+                } catch { }
             }
+        }
+
+        public void ReloadConfig() {
+            LoadConfig();
+        }
+
+        private void SaveConfig() {
+            var lines = new List<string>();
+            foreach (var kvp in contextToApp) {
+                lines.Add(kvp.Key + "=" + kvp.Value);
+            }
+            try { System.IO.File.WriteAllLines(configFilePath, lines.ToArray()); } catch { }
+        }
+
+        public string GetDefaultApp(string context) {
+            if (contextToApp.ContainsKey(context)) return contextToApp[context];
+            return "";
+        }
+
+        public OsdWindow() {
+            configFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "default_apps.txt");
+            LoadConfig();
 
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -155,10 +184,11 @@ namespace VolumeOSD {
             fadeTimer.Start();
         }
 
-        public void ToggleListMode() {
-            if (isInListMode) {
-                SetDefaultApp();
+        public void ToggleListMode(string context) {
+            if (isInListMode && ListModeContext == context) {
+                SetDefaultApp(context);
             } else {
+                ListModeContext = context;
                 EnterListMode();
             }
         }
@@ -226,13 +256,11 @@ namespace VolumeOSD {
             }
         }
 
-        public void SetDefaultApp() {
+        public void SetDefaultApp(string context) {
             if (isInListMode && currentSessions.Count > 0 && selectedSessionIndex >= 0 && selectedSessionIndex < currentSessions.Count) {
                 var session = currentSessions[selectedSessionIndex];
-                DefaultAppName = session.AppName;
-                try {
-                    System.IO.File.WriteAllText(configFilePath, DefaultAppName);
-                } catch { }
+                contextToApp[context] = session.AppName;
+                SaveConfig();
                 RenderListMode();
                 
                 var anim = new DoubleAnimation(1.0, 0.3, TimeSpan.FromMilliseconds(150));
@@ -288,7 +316,8 @@ namespace VolumeOSD {
                 var displayName = session.AppName;
                 if(displayName.Length > 0) displayName = char.ToUpper(displayName[0]) + displayName.Substring(1);
 
-                if (!string.IsNullOrEmpty(DefaultAppName) && session.AppName.Equals(DefaultAppName, StringComparison.OrdinalIgnoreCase)) {
+                string defaultAppForThisContext = GetDefaultApp(ListModeContext);
+                if (!string.IsNullOrEmpty(defaultAppForThisContext) && session.AppName.Equals(defaultAppForThisContext, StringComparison.OrdinalIgnoreCase)) {
                     displayName = "[默认] " + displayName;
                 }
 

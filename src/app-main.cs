@@ -64,10 +64,11 @@ namespace VolumeOSD {
                 Action<string> processMessage = (line) => {
                     if (line == null) return;
                     var parts = line.Split('|');
-                    if (parts.Length == 3 && parts[0] == "CMD") {
+                    if (parts.Length >= 3 && parts[0] == "CMD") {
                         string target = parts[1];
                         if (target == "Preload") return; // 仅预热，不显示
                         float step = float.Parse(parts[2]) / 100f;
+                        string context = parts.Length >= 4 ? parts[3] : "default";
                         
                         if (target == "HoldStart") {
                             window.StartHoldProgress();
@@ -78,11 +79,15 @@ namespace VolumeOSD {
                             return;
                         }
                         if (target == "SetDefaultApp") {
-                            window.SetDefaultApp();
+                            window.SetDefaultApp(context);
+                            return;
+                        }
+                        if (target == "ReloadConfig") {
+                            window.ReloadConfig();
                             return;
                         }
                         if (target == "ToggleListMode") {
-                            window.ToggleListMode();
+                            window.ToggleListMode(context);
                             return;
                         }
                         if (target == "SingleClick") {
@@ -91,18 +96,20 @@ namespace VolumeOSD {
                         }
 
                         if (window.IsInListMode) {
-                            if (target == "Master") {
-                                if (window.IsItemLocked) {
+                            if (window.ListModeContext == context) {
+                                if (target == "Master") {
+                                    if (window.IsItemLocked) {
+                                        window.ChangeSelectedVolume(step);
+                                    } else {
+                                        window.ListScroll(step > 0 ? 1 : -1);
+                                    }
+                                } else if (target == "Foreground") {
                                     window.ChangeSelectedVolume(step);
-                                } else {
-                                    window.ListScroll(step > 0 ? 1 : -1);
                                 }
-                            } else if (target == "Foreground") {
-                                window.ChangeSelectedVolume(step);
                             }
                         } else {
                             if (target == "Master") {
-                                string defaultApp = window.DefaultAppName;
+                                string defaultApp = window.GetDefaultApp(context);
                                 if (!string.IsNullOrEmpty(defaultApp) && defaultApp != "系统主音量") {
                                     string outAppName;
                                     float vol;

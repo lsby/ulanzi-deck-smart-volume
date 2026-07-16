@@ -82,13 +82,50 @@
       .步骤-文本 {
         flex: 1;
       }
+
+      .设置-项 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 8px;
+        border-radius: 6px;
+      }
+      .设置-项 label {
+        color: var(--文字次色);
+      }
+      .设置-项 select {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--边框色);
+        color: var(--文字主色);
+        padding: 4px 8px;
+        border-radius: 4px;
+        outline: none;
+      }
+      .设置-项 select option {
+        background: var(--背景色);
+        color: var(--文字主色);
+      }
+      .设置-项 button {
+        background: var(--主题色-起);
+        color: white;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
-    <div class="面板-主容器">
-      <div class="面板-头部">
-        <div class="面板-标题" data-lan="标题">智能音量控制</div>
+      <div class="设置-项">
+        <label for="defaultAppSelect" data-lan="默认应用">默认应用</label>
+        <select id="defaultAppSelect">
+          <option value="系统主音量">系统主音量</option>
+        </select>
       </div>
+
       <div class="引导-容器">
         <div class="引导-步骤">
           <span class="步骤-文本" data-lan="说明1">直接旋转旋钮：调整系统全局主音量。</span>
@@ -144,6 +181,122 @@
             元素.innerHTML = 当前语言包[键];
           }
         });
+
+        // WebSocket 接口逻辑
+        const urlParams = new URLSearchParams(window.location.search);
+        const address = urlParams.get('address') || '127.0.0.1';
+        const port = urlParams.get('port') || '3906';
+        const actionUuid = urlParams.get('uuid') || '';
+        const actionContext = urlParams.get('actionid') || 'default';
+        const actionKey = urlParams.get('key') || '';
+        
+        let ws = null;
+        let isConnected = false;
+
+        function connect() {
+            try {
+                ws = new WebSocket(`ws://${address}:${port}`);
+                ws.onopen = () => {
+                    isConnected = true;
+                    ws.send(JSON.stringify({
+                        uuid: actionUuid,
+                        cmd: 'connected',
+                        code: 0
+                    }));
+                    setTimeout(requestActiveProcesses, 200);
+                };
+                ws.onmessage = (evt) => {
+                    try {
+                        const msg = JSON.parse(evt.data);
+                        if (msg.cmd === 'sendToPropertyInspector') {
+                            if (msg.payload && msg.payload.type === 'active_processes') {
+                                updateSelect(msg.payload.apps, msg.payload.currentDefault);
+                            } else if (msg.payload && msg.payload.type === 'default_app_changed') {
+                                // check context
+                                if (msg.actionid === actionContext) {
+                                    const val = msg.payload.currentDefault || '系统主音量';
+                                    const sel = document.getElementById('defaultAppSelect');
+                                    if (!Array.from(sel.options).find(o => o.value === val)) {
+                                        const opt = document.createElement('option');
+                                        opt.value = val;
+                                        opt.textContent = val;
+                                        sel.appendChild(opt);
+                                    }
+                                    sel.value = val;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                };
+                ws.onclose = () => {
+                    isConnected = false;
+                    setTimeout(connect, 3000);
+                };
+            } catch(e) {}
+        }
+        
+        function requestActiveProcesses() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({
+                    cmd: 'sendToPlugin',
+                    uuid: actionUuid,
+                    key: actionKey,
+                    actionid: actionContext,
+                    payload: { command: 'get_active_processes' }
+                }));
+            }
+        }
+        
+        document.getElementById('defaultAppSelect').addEventListener('mouseenter', () => {
+            requestActiveProcesses();
+        });
+        
+        document.getElementById('defaultAppSelect').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({
+                    cmd: 'sendToPlugin',
+                    uuid: actionUuid,
+                    key: actionKey,
+                    actionid: actionContext,
+                    payload: { command: 'set_default_app', appName: val }
+                }));
+            }
+        });
+
+        connect();
+
+        function updateSelect(apps, currentDefault) {
+            const sel = document.getElementById('defaultAppSelect');
+            const targetVal = currentDefault || '系统主音量';
+            
+            const allApps = new Set(apps);
+            allApps.add(targetVal);
+            if (!allApps.has('系统主音量')) {
+                allApps.add('系统主音量');
+            }
+            
+            const currentSet = new Set(Array.from(sel.options).map(o => o.value));
+            
+            for (let i = sel.options.length - 1; i >= 0; i--) {
+                if (!allApps.has(sel.options[i].value)) {
+                    sel.remove(i);
+                }
+            }
+            
+            for (const app of allApps) {
+                if (!currentSet.has(app)) {
+                    const opt = document.createElement('option');
+                    opt.value = app;
+                    opt.textContent = app;
+                    sel.appendChild(opt);
+                }
+            }
+            
+            if (sel.value !== targetVal) {
+                sel.value = targetVal;
+            }
+        }
       })();
     </script>
   </body>
