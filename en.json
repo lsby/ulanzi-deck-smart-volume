@@ -1,6 +1,6 @@
 {
   "Name": "Smart Volume",
-  "Description": "Adjust system volume with knob rotation, press and rotate to adjust foreground app volume",
+  "Description": "A convenient smart volume control plugin. Rotate the knob to quickly adjust the master system volume, and press while rotating to precisely control the volume of the current foreground application, making audio management handier.",
   "Actions": [
     {
       "Name": "Smart Volume Control",
