@@ -1,5 +1,5 @@
 {
-  "Version": "1.0.3",
+  "Version": "1.0.4",
   "Author": "lsby",
   "Name": "Smart Volume",
   "Description": "A convenient smart volume control plugin. Rotate the knob to quickly adjust the master system volume, and press while rotating to precisely control the volume of the current foreground application, making audio management handier.",
