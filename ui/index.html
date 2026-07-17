@@ -122,7 +122,7 @@
       <div class="设置-项">
         <label for="defaultAppSelect" data-lan="默认应用">默认应用</label>
         <select id="defaultAppSelect">
-          <option value="系统主音量">系统主音量</option>
+          <option value="系统主音量" data-lan="系统主音量">系统主音量</option>
         </select>
       </div>
 
@@ -144,12 +144,16 @@
         const 语言字典 = {
           "zh_CN": {
             "标题": "智能音量控制",
+            "默认应用": "默认应用",
+            "系统主音量": "系统主音量",
             "说明1": "直接旋转旋钮：调整系统全局主音量。",
             "说明2": "按下并旋转旋钮：调整当前前台应用音量。",
             "说明3": "双击旋钮：打开所有进程音量列表模式。"
           },
           "en": {
             "标题": "Smart Volume Control",
+            "默认应用": "Default App",
+            "系统主音量": "Master Volume",
             "说明1": "Rotate knob: Adjust overall system volume.",
             "说明2": "Press & rotate knob: Adjust foreground app volume.",
             "说明3": "Double click knob: Open process volume list mode."
@@ -219,7 +223,7 @@
                                     if (!Array.from(sel.options).find(o => o.value === val)) {
                                         const opt = document.createElement('option');
                                         opt.value = val;
-                                        opt.textContent = val;
+                                        opt.textContent = val === '系统主音量' && 当前语言包['系统主音量'] ? 当前语言包['系统主音量'] : val;
                                         sel.appendChild(opt);
                                     }
                                     sel.value = val;
@@ -288,7 +292,7 @@
                 if (!currentSet.has(app)) {
                     const opt = document.createElement('option');
                     opt.value = app;
-                    opt.textContent = app;
+                    opt.textContent = app === '系统主音量' && 当前语言包['系统主音量'] ? 当前语言包['系统主音量'] : app;
                     sel.appendChild(opt);
                 }
             }
