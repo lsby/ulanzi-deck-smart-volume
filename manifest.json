@@ -20,9 +20,7 @@
           "Image": "assets/icons/action.png"
         }
       ],
-      "Controllers": [
-        "Encoder"
-      ],
+      "Controllers": ["Encoder"],
       "Encoder": {
         "layout": "$UA1"
       },
@@ -30,6 +28,51 @@
       "SupportedInMultiActions": false,
       "PropertyInspectorPath": "ui/index.html",
       "UUID": "com.lsby.smart-volume.action"
+    },
+    {
+      "Name": "音量 +",
+      "Icon": "assets/icons/action.png",
+      "state": 0,
+      "States": [
+        {
+          "Name": "normal",
+          "Image": "assets/icons/action.png"
+        }
+      ],
+      "Tooltip": "Increase volume",
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "ui/index.html",
+      "UUID": "com.lsby.smart-volume.plus"
+    },
+    {
+      "Name": "音量 -",
+      "Icon": "assets/icons/action.png",
+      "state": 0,
+      "States": [
+        {
+          "Name": "normal",
+          "Image": "assets/icons/action.png"
+        }
+      ],
+      "Tooltip": "Decrease volume",
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "ui/index.html",
+      "UUID": "com.lsby.smart-volume.minus"
+    },
+    {
+      "Name": "音量功能键",
+      "Icon": "assets/icons/action.png",
+      "state": 0,
+      "States": [
+        {
+          "Name": "normal",
+          "Image": "assets/icons/action.png"
+        }
+      ],
+      "Tooltip": "Volume Function Key",
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "ui/index.html",
+      "UUID": "com.lsby.smart-volume.func"
     }
   ],
   "OS": [

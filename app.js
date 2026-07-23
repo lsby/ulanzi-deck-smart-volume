@@ -94,12 +94,13 @@ ws.on('open', () => {
     });
     child.unref();
 });
+let isFuncHeld = false;
 
 ws.on('message', (data) => {
     try {
         const msg = JSON.parse(data.toString());
-        log(`[WS] 收到消息: cmd=${msg.cmd}, actionid=${msg.actionid}, event=${msg.event}, context=${msg.context}, payload=${JSON.stringify(msg.payload)}`);
-        const ctx = msg.actionid || msg.context || 'default';
+        log(`[WS] 收到消息RAW: ${data.toString()}`);
+        let ctx = msg.actionid || msg.context || 'default';
         
         if (msg.cmd === 'dialrotate') {
             if (msg.rotateEvent.includes('hold')) {
@@ -141,6 +142,59 @@ ws.on('message', (data) => {
                     singleClickTimeout.delete(ctx);
                     lastDialDownTime.set(ctx, 0);
                 }, delay));
+            }
+        } else if (msg.cmd === 'keydown') {
+            ctx = 'global_keypad';
+            const action = msg.uuid;
+            log(`[ACTION] 按键按下: action=${action}, context=${ctx}`);
+            if (action === 'com.lsby.smart-volume.func') {
+                isFuncHeld = true;
+            }
+            if (action === 'com.lsby.smart-volume.plus') {
+                if (isFuncHeld) {
+                    triggerVolumeCmd('Foreground', 'right', ctx);
+                } else {
+                    triggerVolumeCmd('Master', 'right', ctx);
+                }
+            } else if (action === 'com.lsby.smart-volume.minus') {
+                if (isFuncHeld) {
+                    triggerVolumeCmd('Foreground', 'left', ctx);
+                } else {
+                    triggerVolumeCmd('Master', 'left', ctx);
+                }
+            } else if (action === 'com.lsby.smart-volume.func') {
+                const now = Date.now();
+                if (singleClickTimeout.has(ctx)) {
+                    clearTimeout(singleClickTimeout.get(ctx));
+                    singleClickTimeout.delete(ctx);
+                }
+                const lastDown = lastDialDownTime.get(ctx) || 0;
+                if (now - lastDown < 400) {
+                    log(`[ACTION] 按键双击: context=${ctx}`);
+                    triggerVolumeCmd('ToggleListMode', 'right', ctx);
+                    lastDialDownTime.set(ctx, 0);
+                } else {
+                    lastDialDownTime.set(ctx, now);
+                }
+            }
+        } else if (msg.cmd === 'keyup') {
+            ctx = 'global_keypad';
+            const action = msg.uuid;
+            log(`[ACTION] 按键松开: action=${action}, context=${ctx}`);
+            if (action === 'com.lsby.smart-volume.func') {
+                isFuncHeld = false;
+                const now = Date.now();
+                const lastDown = lastDialDownTime.get(ctx) || 0;
+                if (lastDown !== 0) {
+                    const timeSinceDown = now - lastDown;
+                    const delay = Math.max(0, 400 - timeSinceDown);
+                    singleClickTimeout.set(ctx, setTimeout(() => {
+                        log(`[ACTION] 按键单击: context=${ctx}`);
+                        triggerVolumeCmd('SingleClick', 'right', ctx);
+                        singleClickTimeout.delete(ctx);
+                        lastDialDownTime.set(ctx, 0);
+                    }, delay));
+                }
             }
         } else if (msg.cmd === 'sendToPlugin' && msg.payload) {
             const payload = msg.payload;
